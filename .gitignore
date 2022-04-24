@@ -1,0 +1,7 @@
+*.pyc
+/virtualenv
+**egg-info
+/.idea
+
+# Cache directories
+.solbinder
