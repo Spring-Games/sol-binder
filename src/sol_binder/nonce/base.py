@@ -62,11 +62,6 @@ class AbstractNonceManager(object):
     def _sync_from_chain(self, account: HexAddress):
         return self._set(account, self.__w3.eth.get_transaction_count(account))
 
-    def get_and_increment(self, account: HexAddress) -> Nonce:
-        nonce = self._get_and_increment(account)
-        self._get_logger().debug(f"Nonce for {account}: {nonce}")
-        return nonce
-
     @contextmanager
     def _lock(self):
         raise NotImplementedError
@@ -94,9 +89,6 @@ class AbstractNonceManager(object):
 
     def _increment(self, account: HexAddress):
         self._set(account, self._get(account) + 1)
-
-    def _get_and_increment(self, account: HexAddress) -> Nonce:
-        raise NotImplementedError()
 
     def _set(self, account: HexAddress, nonce: Nonce):
         """Set the next nonce to use"""

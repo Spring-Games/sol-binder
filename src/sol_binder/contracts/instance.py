@@ -176,19 +176,6 @@ class ContractInstance(Generic[E]):
             self.__tx_logger.log_transaction(tx_hash, func_name, func_args)
         return tx_hash
 
-    def __get_nonce_for_transact(self, params: TxParams) -> Nonce:
-        manual_nonce = params.pop('nonce', None)
-        account: HexAddress = cast(HexAddress, params.get('from', self.creator_account))
-
-        if manual_nonce:
-            return manual_nonce
-        elif not self.__nonce_manager:
-            warn("Bypassing nonce-manager")
-            # todo: deprecate this flow. If we have no nonce and no manager we should fail.
-            return self.__w3.eth.get_transaction_count(account)
-        else:
-            return self.__nonce_manager.get_and_increment(account)
-
     def _get_logger(self) -> Optional[Logger]:
         return get_solbinder_logger()
 

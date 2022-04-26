@@ -47,12 +47,6 @@ class RedisNonceManager(AbstractNonceManager):
             self._sync_from_chain(account)
         return Nonce(int(self.__redis.get(self._account_key(account))))
 
-    def _get_and_increment(self, account: HexAddress) -> Nonce:
-        cached: bool = len(self.__redis.keys(self._account_key(account))) >= 1
-        if not cached:
-            self._sync_from_chain(account)
-        return Nonce(self.__redis.incr(self._account_key(account), 1) - 1)
-
     def _set(self, account: HexAddress, nonce: Nonce):
         self.__redis.set(self._account_key(account), nonce)
 
