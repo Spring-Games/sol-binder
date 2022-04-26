@@ -1,4 +1,5 @@
 from collections import defaultdict
+from contextlib import contextmanager
 from typing import *
 
 from eth_typing import HexAddress
@@ -20,6 +21,14 @@ class NaiveNonceManager(AbstractNonceManager):
     @classmethod
     def name(cls):
         return "naive"
+
+    @contextmanager
+    def _lock(self):
+        yield
+
+    def _get(self, account: HexAddress):
+        self._sync_from_chain(account)
+        return self.__nonces[account]
 
     @classmethod
     def create(cls, w3: Web3, project_root: str,

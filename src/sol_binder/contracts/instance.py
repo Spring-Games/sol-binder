@@ -1,4 +1,5 @@
 from collections import defaultdict
+from contextlib import contextmanager
 from logging import Logger
 from typing import *
 from warnings import warn
@@ -9,6 +10,7 @@ from web3 import Web3
 from web3.contract import Contract, ContractEvents, ContractFunction, ContractEvent, ContractFunctions
 from web3.types import Nonce, TxParams, EventData
 
+from ..nonce.naive import NaiveNonceManager
 from ..solbinder_logging import get_solbinder_logger
 from ..nonce.base import AbstractNonceManager
 from ..project.config import ProjectConfig, ContractDeploymentData
@@ -48,7 +50,7 @@ class ContractInstance(Generic[E]):
                  tx_logger: BaseTransactionLogger = None
                  ):
         self.__w3: Web3 = contract.web3
-        self.__nonce_manager: AbstractNonceManager = nonce_manager
+        self.__nonce_manager: AbstractNonceManager = nonce_manager or NaiveNonceManager(self.__w3)
         self._contract: "Contract" = contract
 
         self.__creator_account: HexAddress = creator_account
@@ -139,29 +141,37 @@ class ContractInstance(Generic[E]):
         """
         if not tx_args.get('from'):
             tx_args['from'] = self.__default_account
+        if tx_args.get('nonce'):
+            @contextmanager
+            def get_nonce(account):
+                yield tx_args.get("nonce")
+        else:
+            get_nonce = self.__nonce_manager.advance_nonce
+
         func: ContractFunction = cast(ContractFunction, self._contract.functions[func_name])
-        nonce = self.__get_nonce_for_transact(tx_args)
-        tx_args.update({"nonce": nonce, })
 
-        try:
-            tx = func(*func_args).buildTransaction(tx_args)
-        except Exception as e:
-            raise TransactionBuildError(e)
+        with get_nonce(tx_args.get("from")) as nonce:
+            tx_args.update({"nonce": nonce, })
 
-        logger: Optional[Logger] = self._get_logger()
-        msg = f"Doing transaction {func_name} on contract {self.address}. Function arguments: {func_args}" \
-              f"Transaction arguments: {tx_args}"
-        logger.info(msg)
+            try:
+                tx = func(*func_args).buildTransaction(tx_args)
+            except Exception as e:
+                raise TransactionBuildError(e)
 
-        try:
-            if self.__private_key is None:
-                # Assume its an 'unlocked test account' if we don't have a private key
-                tx_hash = self.__w3.eth.send_transaction(tx)
-            else:
-                signed_trans = self.__w3.eth.account.sign_transaction(tx, private_key=self.__private_key)
-                tx_hash = self.__w3.eth.send_raw_transaction(signed_trans.rawTransaction)
-        except Exception as e:
-            raise TransactionExecutionError(e)
+            logger: Optional[Logger] = self._get_logger()
+            msg = f"Doing transaction {func_name} on contract {self.address}. Function arguments: {func_args}" \
+                  f"Transaction arguments: {tx_args}"
+            logger.info(msg)
+
+            try:
+                if self.__private_key is None:
+                    # Assume its an 'unlocked test account' if we don't have a private key
+                    tx_hash = self.__w3.eth.send_transaction(tx)
+                else:
+                    signed_trans = self.__w3.eth.account.sign_transaction(tx, private_key=self.__private_key)
+                    tx_hash = self.__w3.eth.send_raw_transaction(signed_trans.rawTransaction)
+            except Exception as e:
+                raise TransactionExecutionError(e)
         if self.__tx_logger:
             self.__tx_logger.log_transaction(tx_hash, func_name, func_args)
         return tx_hash
