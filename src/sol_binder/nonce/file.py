@@ -1,4 +1,5 @@
-﻿from typing import Optional, Union, List
+﻿from contextlib import contextmanager
+from typing import Optional, Union, List
 from pathlib import Path
 
 import os
@@ -31,6 +32,23 @@ class FileNonceManager(AbstractNonceManager):
         nonce = self.__read_nonce_file(account)
         nonce += 1
         self.__write_nonce_file(account, nonce)
+        return nonce
+
+    def _lock_file_path(self):
+        return os.path.join(self.__dir_path, "nonce_manager_lock")
+
+    @contextmanager
+    def _lock(self):
+        if os.path.exists(self._lock_file_path()):
+            raise RuntimeError
+        Path(self._lock_file_path()).touch()
+        try:
+            yield
+        finally:
+            Path(self._lock_file_path()).unlink()
+
+    def _get(self, account: HexAddress):
+        nonce = self.__read_nonce_file(account)
         return nonce
 
     def _set(self, account: HexAddress, nonce: Nonce):

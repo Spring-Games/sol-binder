@@ -1,5 +1,6 @@
 from typing import *
 from logging import Logger
+from contextlib import contextmanager
 
 from eth_typing import HexAddress
 from web3 import Web3
@@ -63,8 +64,31 @@ class AbstractNonceManager(object):
         self._get_logger().debug(f"Nonce for {account}: {nonce}")
         return nonce
 
+    @contextmanager
+    def _lock(self):
+        raise NotImplementedError
+
+    @contextmanager
+    def advance_nonce(self, account: HexAddress):
+        with self._lock():
+            current_nonce = self._get(account)
+            try:
+                yield current_nonce
+            except Exception as e:
+                raise e
+            else:
+                self._set(account, current_nonce + 1)
+
+    def _get(self, account: HexAddress):
+        """Get the next nonce to use"""
+        raise NotImplementedError
+
+    def _increment(self, account: HexAddress):
+        self._set(account, self._get(account) + 1)
+
     def _get_and_increment(self, account: HexAddress) -> Nonce:
         raise NotImplementedError()
 
     def _set(self, account: HexAddress, nonce: Nonce):
+        """Set the next nonce to use"""
         raise NotImplementedError()

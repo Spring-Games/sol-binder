@@ -1,5 +1,6 @@
 *.pyc
 /virtualenv
+/venv
 **egg-info
 /.idea
 
