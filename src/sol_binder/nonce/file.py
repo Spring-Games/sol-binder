@@ -28,12 +28,6 @@ class FileNonceManager(AbstractNonceManager):
     def name(cls):
         return "file"
 
-    def _get_and_increment(self, account: HexAddress) -> Optional[int]:
-        nonce = self.__read_nonce_file(account)
-        nonce += 1
-        self.__write_nonce_file(account, nonce)
-        return nonce
-
     def _lock_file_path(self):
         return os.path.join(self.__dir_path, "nonce_manager_lock")
 

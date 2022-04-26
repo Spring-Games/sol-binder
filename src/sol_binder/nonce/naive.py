@@ -38,9 +38,5 @@ class NaiveNonceManager(AbstractNonceManager):
     def _set(self, account: HexAddress, nonce: Nonce):
         self.__nonces[account] = nonce
 
-    def _get_and_increment(self, account: HexAddress) -> Nonce:
-        self._sync_from_chain(account)
-        return self.__nonces[account]
-
     def _tracked_accounts(self) -> List[HexAddress]:
         return list(self.__nonces.keys())

@@ -41,12 +41,5 @@ class MemoryNonceManager(AbstractNonceManager):
             self._sync_from_chain(account)
         return self._nonces[account]
 
-    def _get_and_increment(self, account: HexAddress) -> Nonce:
-        if not self._nonces.get(account):
-            self._sync_from_chain(account)
-        nonce = self._nonces[account]
-        self._nonces[account] = nonce + 1
-        return nonce
-
     def _set(self, account: HexAddress, nonce: Nonce):
         self._nonces[account] = nonce
