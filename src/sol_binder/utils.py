@@ -11,6 +11,16 @@ from pathlib import Path
 from solcx import compile_source
 
 
+def expand(function, seed):
+    """opposite of functools.reduce. Stops when function return None"""
+    curr = seed
+    while True:
+        curr = function(curr)
+        if curr is not None:
+            yield curr
+        else:
+            break
+
 def basename_without_ext(filepath: str) -> str:
     return os.path.splitext(os.path.basename(filepath))[0]
 

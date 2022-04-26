@@ -5,8 +5,10 @@ from contextlib import contextmanager
 from eth_typing import HexAddress
 from web3 import Web3
 from web3.types import Nonce
+from requests.exceptions import ReadTimeout
 
 from ..solbinder_logging import get_solbinder_logger
+from ..utils import expand
 
 
 class AbstractNonceManager(object):
@@ -44,6 +46,7 @@ class AbstractNonceManager(object):
 
     def __init__(self, w3: Web3):
         self.__w3 = w3
+        self._suspected_desync = set()
 
     @classmethod
     def _get_logger(cls) -> Logger:
@@ -71,13 +74,19 @@ class AbstractNonceManager(object):
     @contextmanager
     def advance_nonce(self, account: HexAddress):
         with self._lock():
+            if account in self._suspected_desync:
+                self._sync_from_chain(account)
             current_nonce = self._get(account)
             try:
                 yield current_nonce
             except Exception as e:
+                exception_types = [type(exc) for exc in expand(lambda exc: exc.__context__, e)]
+                if ReadTimeout in exception_types:
+                    self._suspected_desync.add(account)
                 raise e
             else:
                 self._set(account, current_nonce + 1)
+                self._suspected_desync.discard(account)
 
     def _get(self, account: HexAddress):
         """Get the next nonce to use"""
