@@ -36,7 +36,6 @@ class AbstractNonceManager(object):
     correct nonce
     """
     _LOCK_TIMEOUT_SECONDS = 10
-    _LOCK_POLLING_INTERVAL = 1
 
     @classmethod
     def name(cls):
@@ -65,28 +64,19 @@ class AbstractNonceManager(object):
     def _sync_from_chain(self, account: HexAddress):
         return self._set(account, self.__w3.eth.get_transaction_count(account))
 
-    def _lock(self):
+    def _lock_blocking(self):
         raise NotImplementedError
 
     def _unlock(self):
         raise NotImplementedError
 
-    def _is_locked(self):
-        raise NotImplementedError
-
     @contextmanager
     def _lock_context(self):
-        now = time()
-        while time() - now < self._LOCK_TIMEOUT_SECONDS and self._is_locked():
-            sleep(self._LOCK_POLLING_INTERVAL)
-        if self._is_locked():
-            raise TimeoutError("Solbinder nonce manager couldn't attain a lock to provide a nonce for a transaction.")
-        else:
-            self._lock()
-            try:
-                yield
-            finally:
-                self._unlock()
+        self._lock_blocking()
+        try:
+            yield
+        finally:
+            self._unlock()
 
     @contextmanager
     def advance_nonce(self, account: HexAddress):

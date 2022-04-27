@@ -1,5 +1,5 @@
-from contextlib import contextmanager
 from typing import *
+from threading import Lock
 
 from eth_typing import HexAddress
 from web3 import Web3
@@ -22,18 +22,17 @@ class MemoryNonceManager(AbstractNonceManager):
         super().__init__(w3)
         self._locked = False
         self._nonces: Dict[HexAddress: Nonce] = {}
+        self._lock = Lock()
 
     def _tracked_accounts(self) -> List[HexAddress]:
         return list(self._nonces.keys())
 
-    def _lock(self):
-        self._locked = True
-
     def _unlock(self):
-        self._locked = False
+        self._lock.release()
 
-    def _is_locked(self):
-        return bool(self._locked)
+
+    def _lock_blocking(self):
+        self._lock.acquire(timeout=self._LOCK_TIMEOUT_SECONDS)
 
     def _get(self, account: HexAddress):
         if not self._nonces.get(account):

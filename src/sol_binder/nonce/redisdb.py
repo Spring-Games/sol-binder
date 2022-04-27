@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from typing import *
 
 from eth_typing import HexAddress
@@ -30,15 +29,13 @@ class RedisNonceManager(AbstractNonceManager):
     def __init__(self, redis: "Redis", w3: Web3):
         super().__init__(w3)
         self.__redis: Redis = redis
+        self._lock = redis.lock(self.__lock_key)
 
-    def _lock(self):
-        self.__redis.set(self.__lock_key, 1)
+    def _lock_blocking(self):
+        self._lock.acquire(blocking=True, blocking_timeout=self._LOCK_TIMEOUT_SECONDS)
 
     def _unlock(self):
-        self.__redis.delete(self.__lock_key)
-
-    def _is_locked(self):
-        return bool(self.__redis.get(self.__lock_key))
+        self._lock.release()
 
     def _get(self, account: HexAddress):
         cached: bool = len(self.__redis.keys(self._account_key(account))) >= 1

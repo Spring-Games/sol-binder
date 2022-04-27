@@ -1,5 +1,4 @@
 from collections import defaultdict
-from contextlib import contextmanager
 from typing import *
 
 from eth_typing import HexAddress
@@ -22,14 +21,11 @@ class NaiveNonceManager(AbstractNonceManager):
     def name(cls):
         return "naive"
 
-    def _lock(self):
+    def _lock_blocking(self):
         pass
 
     def _unlock(self):
         pass
-
-    def _is_locked(self):
-        return False
 
     def _get(self, account: HexAddress):
         self._sync_from_chain(account)
