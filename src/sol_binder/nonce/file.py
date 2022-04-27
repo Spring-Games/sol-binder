@@ -31,15 +31,14 @@ class FileNonceManager(AbstractNonceManager):
     def _lock_file_path(self):
         return os.path.join(self.__dir_path, "nonce_manager_lock")
 
-    @contextmanager
     def _lock(self):
-        if os.path.exists(self._lock_file_path()):
-            raise RuntimeError
         Path(self._lock_file_path()).touch()
-        try:
-            yield
-        finally:
-            Path(self._lock_file_path()).unlink()
+
+    def _unlock(self):
+        Path(self._lock_file_path()).unlink()
+
+    def _is_locked(self):
+        return os.path.exists(self._lock_file_path())
 
     def _get(self, account: HexAddress):
         nonce = self.__read_nonce_file(account)

@@ -31,15 +31,14 @@ class RedisNonceManager(AbstractNonceManager):
         super().__init__(w3)
         self.__redis: Redis = redis
 
-    @contextmanager
     def _lock(self):
-        if self.__redis.get(self.__lock_key):
-            raise RuntimeError
         self.__redis.set(self.__lock_key, 1)
-        try:
-            yield
-        finally:
-            self.__redis.delete(self.__lock_key)
+
+    def _unlock(self):
+        self.__redis.delete(self.__lock_key)
+
+    def _is_locked(self):
+        return bool(self.__redis.get(self.__lock_key))
 
     def _get(self, account: HexAddress):
         cached: bool = len(self.__redis.keys(self._account_key(account))) >= 1
