@@ -26,15 +26,14 @@ class MemoryNonceManager(AbstractNonceManager):
     def _tracked_accounts(self) -> List[HexAddress]:
         return list(self._nonces.keys())
 
-    @contextmanager
     def _lock(self):
-        if self._locked:
-            raise RuntimeError
         self._locked = True
-        try:
-            yield
-        finally:
-            self._locked = False
+
+    def _unlock(self):
+        self._locked = False
+
+    def _is_locked(self):
+        return bool(self._locked)
 
     def _get(self, account: HexAddress):
         if not self._nonces.get(account):

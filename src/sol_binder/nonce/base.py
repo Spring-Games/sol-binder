@@ -1,6 +1,7 @@
 from typing import *
 from logging import Logger
 from contextlib import contextmanager
+from time import time, sleep
 
 from eth_typing import HexAddress
 from web3 import Web3
@@ -34,6 +35,8 @@ class AbstractNonceManager(object):
     if this class that uses an atomic redis counter, allowing multiple processes to coordinate transactions with a
     correct nonce
     """
+    _LOCK_TIMEOUT_SECONDS = 10
+    _LOCK_POLLING_INTERVAL = 1
 
     @classmethod
     def name(cls):
@@ -62,13 +65,32 @@ class AbstractNonceManager(object):
     def _sync_from_chain(self, account: HexAddress):
         return self._set(account, self.__w3.eth.get_transaction_count(account))
 
-    @contextmanager
     def _lock(self):
         raise NotImplementedError
 
+    def _unlock(self):
+        raise NotImplementedError
+
+    def _is_locked(self):
+        raise NotImplementedError
+
+    @contextmanager
+    def _lock_context(self):
+        now = time()
+        while time() - now < self._LOCK_TIMEOUT_SECONDS and self._is_locked():
+            sleep(self._LOCK_POLLING_INTERVAL)
+        if self._is_locked():
+            raise TimeoutError("Solbinder nonce manager couldn't attain a lock to provide a nonce for a transaction.")
+        else:
+            self._lock()
+            try:
+                yield
+            finally:
+                self._unlock()
+
     @contextmanager
     def advance_nonce(self, account: HexAddress):
-        with self._lock():
+        with self._lock_context():
             if account in self._suspected_desync:
                 self._sync_from_chain(account)
             current_nonce = self._get(account)

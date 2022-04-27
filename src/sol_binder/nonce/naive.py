@@ -22,9 +22,14 @@ class NaiveNonceManager(AbstractNonceManager):
     def name(cls):
         return "naive"
 
-    @contextmanager
     def _lock(self):
-        yield
+        pass
+
+    def _unlock(self):
+        pass
+
+    def _is_locked(self):
+        return False
 
     def _get(self, account: HexAddress):
         self._sync_from_chain(account)
