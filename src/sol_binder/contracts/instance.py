@@ -38,6 +38,10 @@ class TransactionExecutionError(Exception):
         self.ex = inner_ex
 
 
+class ManualNonceNotSupported(Exception):
+    pass
+
+
 E = TypeVar('E', bound=BaseEventGroup)
 
 
@@ -139,18 +143,15 @@ class ContractInstance(Generic[E]):
                value is in wei
         :return:
         """
+        if tx_args.get('nonce'):
+            raise ManualNonceNotSupported("Please read about Nonce-Manager for SolBinder")
+
         if not tx_args.get('from'):
             tx_args['from'] = self.__default_account
-        if tx_args.get('nonce'):
-            @contextmanager
-            def get_nonce(account):
-                yield tx_args.get("nonce")
-        else:
-            get_nonce = self.__nonce_manager.advance_nonce
 
         func: ContractFunction = cast(ContractFunction, self._contract.functions[func_name])
 
-        with get_nonce(tx_args.get("from")) as nonce:
+        with self.__nonce_manager.advance_nonce(tx_args.get("from")) as nonce:
             tx_args.update({"nonce": nonce, })
 
             try:
