@@ -1,5 +1,6 @@
 ﻿from typing import Optional, Union, List
 from pathlib import Path
+from filelock import FileLock
 
 import os
 
@@ -14,6 +15,7 @@ class FileNonceManager(AbstractNonceManager):
     def __init__(self, dir_path: str, w3: Web3):
         super().__init__(w3)
         self.__dir_path = dir_path
+        self._lock = FileLock(self._lock_file_path())
 
     @classmethod
     def create(cls, w3: Web3, project_root: str,
@@ -27,10 +29,17 @@ class FileNonceManager(AbstractNonceManager):
     def name(cls):
         return "file"
 
-    def _get_and_increment(self, account: HexAddress) -> Optional[int]:
+    def _lock_file_path(self):
+        return os.path.join(self.__dir_path, "nonce_manager_lock")
+
+    def _lock_blocking(self):
+        self._lock.acquire(timeout=self._LOCK_TIMEOUT_SECONDS)
+
+    def _unlock(self):
+        self._lock.release(True)
+
+    def _get(self, account: HexAddress):
         nonce = self.__read_nonce_file(account)
-        nonce += 1
-        self.__write_nonce_file(account, nonce)
         return nonce
 
     def _set(self, account: HexAddress, nonce: Nonce):

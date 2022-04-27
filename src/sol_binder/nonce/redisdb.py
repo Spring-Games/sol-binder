@@ -10,6 +10,7 @@ from .base import AbstractNonceManager
 
 class RedisNonceManager(AbstractNonceManager):
     __key_base: str = "nonce_mgr:nonce_of:"
+    __lock_key = "nonce_mgr:lock"
 
     @classmethod
     def name(cls):
@@ -28,12 +29,19 @@ class RedisNonceManager(AbstractNonceManager):
     def __init__(self, redis: "Redis", w3: Web3):
         super().__init__(w3)
         self.__redis: Redis = redis
+        self._lock = redis.lock(self.__lock_key)
 
-    def _get_and_increment(self, account: HexAddress) -> Nonce:
+    def _lock_blocking(self):
+        self._lock.acquire(blocking=True, blocking_timeout=self._LOCK_TIMEOUT_SECONDS)
+
+    def _unlock(self):
+        self._lock.release()
+
+    def _get(self, account: HexAddress):
         cached: bool = len(self.__redis.keys(self._account_key(account))) >= 1
         if not cached:
             self._sync_from_chain(account)
-        return Nonce(self.__redis.incr(self._account_key(account), 1) - 1)
+        return Nonce(int(self.__redis.get(self._account_key(account))))
 
     def _set(self, account: HexAddress, nonce: Nonce):
         self.__redis.set(self._account_key(account), nonce)

@@ -1,3 +1,5 @@
 web3
 py-solc-x
 click
+pyyaml
+filelock

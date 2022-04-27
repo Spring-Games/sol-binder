@@ -1,11 +1,15 @@
 from typing import *
 from logging import Logger
+from contextlib import contextmanager
+from time import time, sleep
 
 from eth_typing import HexAddress
 from web3 import Web3
 from web3.types import Nonce
+from requests.exceptions import ReadTimeout
 
 from ..solbinder_logging import get_solbinder_logger
+from ..utils import expand
 
 
 class AbstractNonceManager(object):
@@ -31,6 +35,7 @@ class AbstractNonceManager(object):
     if this class that uses an atomic redis counter, allowing multiple processes to coordinate transactions with a
     correct nonce
     """
+    _LOCK_TIMEOUT_SECONDS = 10
 
     @classmethod
     def name(cls):
@@ -43,6 +48,7 @@ class AbstractNonceManager(object):
 
     def __init__(self, w3: Web3):
         self.__w3 = w3
+        self._suspected_desync = set()
 
     @classmethod
     def _get_logger(cls) -> Logger:
@@ -58,13 +64,44 @@ class AbstractNonceManager(object):
     def _sync_from_chain(self, account: HexAddress):
         return self._set(account, self.__w3.eth.get_transaction_count(account))
 
-    def get_and_increment(self, account: HexAddress) -> Nonce:
-        nonce = self._get_and_increment(account)
-        self._get_logger().debug(f"Nonce for {account}: {nonce}")
-        return nonce
+    def _lock_blocking(self):
+        raise NotImplementedError
 
-    def _get_and_increment(self, account: HexAddress) -> Nonce:
-        raise NotImplementedError()
+    def _unlock(self):
+        raise NotImplementedError
+
+    @contextmanager
+    def _lock_context(self):
+        self._lock_blocking()
+        try:
+            yield
+        finally:
+            self._unlock()
+
+    @contextmanager
+    def advance_nonce(self, account: HexAddress):
+        with self._lock_context():
+            if account in self._suspected_desync:
+                self._sync_from_chain(account)
+            current_nonce = self._get(account)
+            try:
+                yield current_nonce
+            except Exception as e:
+                exception_types = [type(exc) for exc in expand(lambda exc: exc.__context__, e)]
+                if ReadTimeout in exception_types:
+                    self._suspected_desync.add(account)
+                raise e
+            else:
+                self._set(account, current_nonce + 1)
+                self._suspected_desync.discard(account)
+
+    def _get(self, account: HexAddress):
+        """Get the next nonce to use"""
+        raise NotImplementedError
+
+    def _increment(self, account: HexAddress):
+        self._set(account, self._get(account) + 1)
 
     def _set(self, account: HexAddress, nonce: Nonce):
+        """Set the next nonce to use"""
         raise NotImplementedError()
