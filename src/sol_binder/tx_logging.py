@@ -5,7 +5,6 @@ from abc import ABC
 from copy import deepcopy
 from pathlib import Path
 
-from pymongo import MongoClient
 
 _Preprocessor = Callable[[str, str, List], Dict]
 
@@ -102,6 +101,7 @@ class FileTransactionLogger(BaseTransactionLogger):
 
 class MongoTransactionLog(BaseTransactionLogger):
     def __init__(self, mongo_uri: str, contract_name: str) -> None:
+        from pymongo import MongoClient
         db_name = mongo_uri.split('/')[-1]
         host = mongo_uri[0:-len(db_name) - 1]
         self._collection = MongoClient(host)[db_name][f"{contract_name}_transactions"]

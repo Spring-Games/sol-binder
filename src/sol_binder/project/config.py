@@ -6,6 +6,8 @@ from typing import *
 from dataclasses import dataclass, field
 
 from dataclasses import asdict
+
+import click
 import yaml
 from eth_typing import HexAddress
 from web3 import Web3
@@ -13,7 +15,7 @@ from web3.contract import Contract
 
 from ..nonce.base import AbstractNonceManager
 from ..project.errors import NoContractsFoundError, ProjectConfigLocationError, ProjectConfigLoadError, \
-    UnknownNonceManagerType
+    UnknownNonceManagerType, ProjectConfigAlreadyExistsError
 from ..tx_logging import BaseTransactionLogger, FileTransactionLogger, MongoTransactionLog
 from ..utils import basename_without_ext
 
@@ -272,13 +274,25 @@ class ProjectConfig(object):
         config_path = cls.find_project_config_path(start_path)
         project_dir = config_path.parents[0]
         with open(config_path) as config_fh:
-            config_dict = dict(yaml.safe_load(config_fh))
-        if config_dict is None:
-            # Empty config file
-            raise ProjectConfigLoadError(f"Configuration file {config_path} is empty")
+            loaded_data = yaml.safe_load(config_fh)
+            if loaded_data is None:
+                config_dict = dict()
+            else:
+                config_dict = dict(yaml.safe_load(config_fh))
         try:
             config_dict['project_root'] = project_dir
             config = cls(**config_dict)
         except TypeError as e:
             raise ProjectConfigLoadError(f"Configuration load failed from {config_path}: {e}")
         return config
+
+    def create(self, path: Union[str, Path, None]):
+        if path is None:
+            path = os.getcwd()
+        full_file_path = os.path.abspath(os.path.normpath(os.path.join(path, DEFAULT_CONFIG_FILENAME)))
+        click.secho(f"Creating project in {full_file_path}", fg="green")
+        if os.path.exists(full_file_path):
+            raise ProjectConfigAlreadyExistsError(full_file_path)
+        data_dict = asdict(self)
+        with open(full_file_path, "w") as fh:
+            yaml.safe_dump(data_dict, fh)
