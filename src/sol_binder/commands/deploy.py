@@ -14,8 +14,10 @@ from ..contract_tool import ContractTool
 from ..project.config import ProjectConfig, ContractDeploymentData
 
 
-def deploy_all(*args, solbinder_config: ProjectConfig = ProjectConfig.load_project_config(),
+def deploy_all(*args, solbinder_config: ProjectConfig = None,
                on_already_deployed: Callable = None, **kwargs):
+    if solbinder_config is None:
+        solbinder_config = ProjectConfig.load_project_config()
     for deployment_plan in solbinder_config.iter_deployment_plans():
         try:
             deploy_contract(deployment_plan.name, *args, **kwargs)
@@ -26,8 +28,10 @@ def deploy_all(*args, solbinder_config: ProjectConfig = ProjectConfig.load_proje
 
 
 def deploy_contract(contract_name: str, account: str, private_key: str, solc_version: str,
-                    solbinder_config: ProjectConfig = ProjectConfig.load_project_config(),
+                    solbinder_config: ProjectConfig = None,
                     verbose: bool = False, force: bool = False):
+    if solbinder_config:
+        solbinder_config = ProjectConfig.load_project_config()
     deployment_cache_path = solbinder_config.deploy_cache_dir
     if not os.path.isdir(deployment_cache_path):
         os.makedirs(deployment_cache_path)

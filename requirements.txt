@@ -3,3 +3,4 @@ py-solc-x
 click
 pyyaml
 filelock
+deprecated

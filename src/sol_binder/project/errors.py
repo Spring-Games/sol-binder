@@ -1,4 +1,12 @@
-﻿class ProjectConfigError(Exception):
+﻿class ProjectError(Exception):
+    pass
+
+
+class ProjectConfigAlreadyExistsError(ProjectError):
+    pass
+
+
+class ProjectConfigError(ProjectError):
     pass
 
 
