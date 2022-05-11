@@ -278,7 +278,7 @@ class ProjectConfig(object):
             if loaded_data is None:
                 config_dict = dict()
             else:
-                config_dict = dict(yaml.safe_load(config_fh))
+                config_dict = dict(loaded_data)
         try:
             config_dict['project_root'] = project_dir
             config = cls(**config_dict)
