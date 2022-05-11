@@ -30,7 +30,7 @@ def deploy_all(*args, solbinder_config: ProjectConfig = None,
 def deploy_contract(contract_name: str, account: str, private_key: str, solc_version: str,
                     solbinder_config: ProjectConfig = None,
                     verbose: bool = False, force: bool = False):
-    if solbinder_config:
+    if solbinder_config is None:
         solbinder_config = ProjectConfig.load_project_config()
     deployment_cache_path = solbinder_config.deploy_cache_dir
     if not os.path.isdir(deployment_cache_path):
